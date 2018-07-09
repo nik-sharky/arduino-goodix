@@ -4,31 +4,26 @@
 // Interrupt handling
 volatile uint8_t goodixIRQ=0;
 
-void _goodix_irq_handler() {
+void ICACHE_RAM_ATTR _goodix_irq_handler() {
+  noInterrupts();
   goodixIRQ = 1;
-/*  if (!gt1x_rawdiff_mode && (ret >= 0 || ret == ERROR_VALUE)) {
-    ret = gt1x_i2c_write(GTP_READ_COOR_ADDR, &end_cmd, 1);
-    if (ret < 0)
-      GTP_ERROR("I2C write end_cmd  error!");
-}*/
-
-//    ret = gt1x_i2c_write(GTP_READ_COOR_ADDR, &end_cmd, 1);
-//    if (ret < 0)
-//      GTP_ERROR("I2C write end_cmd  error!");
-
+  interrupts();
 }
 
 
 // Implementation
 Goodix::Goodix() {
+  
+}
+
+void Goodix::setHandler(void (*handler)(int8_t, GTPoint*)) {
+  touchHandler = handler;
 }
 
 bool Goodix::begin(uint8_t interruptPin, uint8_t resetPin, uint8_t addr) {
   intPin = interruptPin;
   rstPin = resetPin;
   i2cAddr = addr;
-
-  DEBUG_PIN(LOW);
   
   // Take chip some time to start
   msSleep(300);
@@ -40,12 +35,6 @@ bool Goodix::begin(uint8_t interruptPin, uint8_t resetPin, uint8_t addr) {
 
 
 bool Goodix::reset() {
-  #ifdef GOODIX_DBG_PIN
-    pinOut(GOODIX_DBG_PIN);
-  #endif
-  
-  DEBUG_PIN(HIGH);
-
   msSleep(1);
   
   pinOut(intPin);
@@ -76,11 +65,6 @@ bool Goodix::reset() {
   /* T5: 50ms */
   msSleep(51);
   pinIn(intPin); // INT pin has no pullups so simple set to floating input
-
-  DEBUG_PIN(LOW);
-  #ifdef GOODIX_DBG_PIN
-digitalWrite(GOODIX_DBG_PIN, LOW);
-#endif
 
   attachInterrupt(intPin, _goodix_irq_handler, RISING);
 //  detachInterrupt(intPin, _goodix_irq_handler);
@@ -132,17 +116,19 @@ void Goodix::armIRQ() {
 }
 
 void Goodix::onIRQ() {
-  uint8_t buf[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
+  //uint8_t buf[1 + GOODIX_CONTACT_SIZE * GOODIX_MAX_CONTACTS];
   int8_t contacts;
 
-  contacts = readInput((uint8_t *) &points);
+  contacts = readInput(points);
   if (contacts < 0)
     return;
 
   if (contacts > 0) {
+    touchHandler(contacts, (GTPoint *)points);
+/*
     Serial.print("Contacts: ");
     Serial.println(contacts);
-  
+    
     for (uint8_t i = 0; i < contacts; i++) {
       Serial.print("C ");
       Serial.print(i);
@@ -156,6 +142,7 @@ void Goodix::onIRQ() {
       Serial.print(points[i].size);
       Serial.println();
     }
+    */
   }
   
   //Serial.println(&points[1 + GOODIX_CONTACT_SIZE * i]);
@@ -175,8 +162,12 @@ void Goodix::onIRQ() {
 }
 
 void Goodix::loop() {
-  if (goodixIRQ) {
-    goodixIRQ = 0;
+  noInterrupts();
+  uint8_t irq = goodixIRQ;
+  goodixIRQ = 0;
+  interrupts();
+  
+  if (irq) {    
     onIRQ();    
   }
 }
@@ -186,23 +177,31 @@ int16_t Goodix::readInput(uint8_t *data) {
   int touch_num;
   int error;
 
-  error = read(GOODIX_READ_COORD_ADDR, data, GOODIX_CONTACT_SIZE + 1);
+  uint8_t regState[1];
+  
+  error = read(GOODIX_READ_COORD_ADDR, regState, 1);
+  log_printf("regState: %#06x\n", regState);
+
   if (error) {
     //dev_err(&ts->client->dev, "I2C transfer error: %d\n", error);
     return -error;
   }
 
-  if (!(data[0] & 0x80))
+  if (!(regState[0] & 0x80))
     return -EAGAIN;
 
-  touch_num = data[0] & 0x0f;
+  touch_num = regState[0] & 0x0f;
   //if (touch_num > ts->max_touch_num)
   //  return -EPROTO;
 
-  if (touch_num > 1) {
-    data += 1 + GOODIX_CONTACT_SIZE;
+  log_printf("touch num: %d\n", touch_num);
+  
+  if (touch_num > 0) {
+/*    data += 1 + GOODIX_CONTACT_SIZE;
     error = read(GOODIX_READ_COORD_ADDR + 1 + GOODIX_CONTACT_SIZE, data,
           GOODIX_CONTACT_SIZE * (touch_num - 1));
+          */
+    error = read(GOODIX_READ_COORD_ADDR + 1, data, GOODIX_CONTACT_SIZE * (touch_num));
     
     if (error)
       return -error;

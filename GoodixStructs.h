@@ -12,7 +12,7 @@ struct GTPoint {
   uint8_t trackId;
   uint16_t x;
   uint16_t y;
-  uint16_t size;
+  uint16_t area;
   uint8_t reserved;
 };
 

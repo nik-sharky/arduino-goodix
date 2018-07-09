@@ -2,6 +2,10 @@
 #define _GOODIX_H_
 
 #include <Arduino.h>
+#ifndef LOG
+#define LOG Serial
+#endif
+#include "log.h"
 #include "GoodixStructs.h"
 
 #define GOODIX_OK   0
@@ -50,7 +54,7 @@
 // 7:1 Reserved, 0 Touch key */
 #define GOODIX_REG_MOD_SW2      0x804E
 
-// Number of debuffs fingers press/release 
+// Number of debuffs fingers press/release
 #define GOODIX_REG_SHAKE_CNT    0x804F
 
 // ReadOnly registers (device and coordinates info)
@@ -69,20 +73,20 @@
 #define GOODIX_READ_COORD_ADDR  0x814E
 
 /* Commands for REG_COMMAND */
-//0: read coordinate state 
+//0: read coordinate state
 #define GOODIX_CMD_READ         0x00
-// 1: difference value original value 
+// 1: difference value original value
 #define GOODIX_CMD_DIFFVAL      0x01
 // 2: software reset
 #define GOODIX_CMD_SOFTRESET    0x02
-// 3: Baseline update 
+// 3: Baseline update
 #define GOODIX_CMD_BASEUPDATE   0x03
-// 4: Benchmark calibration 
+// 4: Benchmark calibration
 #define GOODIX_CMD_CALIBRATE    0x04
 // 5: Off screen (send other invalid)
 #define GOODIX_CMD_SCREEN_OFF   0x05
 
-/* When data needs to be sent, the host sends command 0x21 to GT9x, 
+/* When data needs to be sent, the host sends command 0x21 to GT9x,
  * enabling GT911 to enter "Approach mode" and work as a transmitting terminal */
 #define GOODIX_CMD_HOTKNOT_TX   0x21
 
@@ -90,59 +94,56 @@
 #define MAX_CONTACTS_LOC  5
 #define TRIGGER_LOC 6
 
-#ifdef GOODIX_DBG_PIN
-  #define DEBUG_PIN(x)  digitalWrite((GOODIX_DBG_PIN), (x));
-#else
-  #define DEBUG_PIN(x)
-#endif
-
 class Goodix {
   public:
     uint8_t i2cAddr;
     struct GTConfig config;
     struct GTInfo info;
-    struct GTPoint points[10]; //points buffer
-    
+    uint8_t points[GOODIX_MAX_CONTACTS*GOODIX_CONTACT_SIZE]; //points buffer
+
     Goodix();
-    
+
+    void setHandler(void (*handler)(int8_t, GTPoint*));
+
     bool begin(uint8_t interruptPin, uint8_t resetPin, uint8_t addr=GOODIX_I2C_ADDR_BA);
     bool reset();
     uint8_t test();
     void loop();
-    
+
     uint8_t write(uint16_t reg, uint8_t *buf, size_t len);
     uint8_t write(uint16_t reg, uint8_t value);
     uint8_t read(uint16_t reg, uint8_t *buf, size_t len);
 
     GTConfig* readConfig();
     GTInfo* readInfo();
-    
+
     uint8_t productID(char *buf);
-    
+
     int16_t readInput(uint8_t *data);
-  
+
   //--- Private routines ---
-  private: 
+  private:
     uint8_t intPin, rstPin;
-  
+    void (*touchHandler)(int8_t, GTPoint*);
+
     void debugPin(uint8_t level);
     void armIRQ();
     void onIRQ();
-  
+
     //--- utils ---
     void usSleep(uint16_t microseconds);
     void msSleep(uint16_t milliseconds);
-  
+
     void pinIn(uint8_t pin);
     void pinOut(uint8_t pin);
     void pinSet(uint8_t pin, uint8_t level);
-    
-    // Used with pulled-up lines, set pin mode to out, write LOW 
+
+    // Used with pulled-up lines, set pin mode to out, write LOW
     void pinHold(uint8_t pin);
-    
+
     // Check pin level
     bool pinCheck(uint8_t pin, uint8_t level);
-  
+
     void i2cStart(uint16_t reg);
     void i2cRestart();
     uint8_t i2cStop();
