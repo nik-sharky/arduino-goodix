@@ -114,6 +114,11 @@ class Goodix {
     uint8_t write(uint16_t reg, uint8_t value);
     uint8_t read(uint16_t reg, uint8_t *buf, size_t len);
 
+    uint8_t calcChecksum(uint8_t* buf, uint8_t len);
+    uint8_t readChecksum();
+
+    uint8_t fwResolution(uint16_t maxX, uint16_t maxY);
+    
     GTConfig* readConfig();
     GTInfo* readInfo();
 
