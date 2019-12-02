@@ -312,7 +312,7 @@ uint8_t Goodix::read(uint16_t reg, uint8_t *buf, size_t len) {
     }
     delay(0);
   }
-  return Wire.endTransmission();
+  return 0;
 }
 
 void Goodix::pinOut(uint8_t pin) {
