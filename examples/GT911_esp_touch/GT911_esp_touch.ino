@@ -1,9 +1,7 @@
-#define LOG Serial
-#include "log.h"
-
 #include <Wire.h>
 #include "Goodix.h"
 
+// D5 D6 pins are defined on boards like WeMOS, You can redefine it to numeric values
 #define INT_PIN D6
 #define RST_PIN D5
 
@@ -11,9 +9,9 @@
 Goodix touch = Goodix();
 
 void handleTouch(int8_t contacts, GTPoint *points) {
-  log_printf("Contacts: %d\n", contacts);
+  Serial.printf("Contacts: %d\n", contacts);
   for (uint8_t i = 0; i < contacts; i++) {
-    log_printf("C%d: #%d %d,%d s:%d\n", i, points[i].trackId, points[i].x, points[i].y, points[i].area);
+    Serial.printf("C%d: #%d %d,%d s:%d\n", i, points[i].trackId, points[i].x, points[i].y, points[i].area);
     yield();
   }
 }
@@ -40,7 +38,7 @@ void touchStart() {
 
 void setup() {
   Serial.begin(115200);
-  log_println("\nGoodix GT911x touch driver");
+  Serial.println("\nGoodix GT911x touch driver");
 
   Wire.setClock(400000);
   Wire.begin();

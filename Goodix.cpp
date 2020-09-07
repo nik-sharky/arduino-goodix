@@ -1,6 +1,10 @@
 #include "Goodix.h"
 #include "Wire.h"
 
+#ifndef ICACHE_RAM_ATTR
+#define ICACHE_RAM_ATTR
+#endif
+
 // Interrupt handling
 volatile uint8_t goodixIRQ = 0;
 
